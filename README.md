@@ -11,7 +11,7 @@ caching to eliminate redundant calls to the server.
 
 [fluent interface]: https://en.wikipedia.org/wiki/Fluent_interface
 [Node]: https://nodejs.org
-[Tripple Pattern Fragments]: http://linkeddatafragments.org/
+[Triple Pattern Fragments]: http://linkeddatafragments.org/
 
 
 Quickstart
