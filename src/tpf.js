@@ -53,9 +53,33 @@ var tpf = (function module() {
          * @param {string} subject
          * @param {string} predicate
          * @param {string} object
+         * @param {number} page If unspecified or < 1, all pages are returned.
          */
-        this.Query = function query(subject, predicate, object) {
-            return Query(endpoint, subject, predicate, object)
+        this.Query = function query(subject, predicate, object, page) {
+            if (page) {
+                return Query(endpoint, subject, predicate, object, page)
+                    .then(function (triples) { return triples.filter(useful) })
+            }
+
+            return call([], 1)
+                .then(function (triples) { return triples.filter(useful) })
+
+            function call(allTriples, page) {
+                return Query(endpoint, subject, predicate, object, page)
+                    .then(function (triples) {
+                        // http://www.w3.org/ns/hydra/core#nextPage
+                        if (!triples.some(hasNextPage)) {
+                            return allTriples.concat(triples)
+                        }
+
+                        return call(allTriples.concat(triples), page + 1)
+
+                        function hasNextPage(triple) {
+                            const np = "<http://www.w3.org/ns/hydra/core#nextPage>"
+                            return triple.Predicate === np
+                        }
+                    })
+            }
         }
 
         /** Queries the TPF server for the entity with `iri`, if not cached. */
@@ -134,13 +158,15 @@ var tpf = (function module() {
      * @param {string} subject
      * @param {string} predicate
      * @param {string} object
+     * @param {number} page
      * @returns {Promise<{Subject: string, Object: string, Predicate: string}>}
      */
-    function Query(endpoint, subject, predicate, object) {
+    function Query(endpoint, subject, predicate, object, page) {
         const criteria = {
             subject: subject || "",
             predicate: predicate || "",
             object: object || "",
+            page: page || 1,
         }
 
         const headers = {
@@ -156,7 +182,6 @@ var tpf = (function module() {
         return fetch(url, options)
             .then(function (data) { return data.text() })
             .then(ParseTriples)
-            .then(function (triples) { return triples.filter(useful) })
     }
 
     /** Removes the surrounding double-quotation marks from a string. */
