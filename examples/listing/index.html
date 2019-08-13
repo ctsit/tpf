@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <title>OpenVIVO People</title>
+
+    <!-- Promise polyfill to support Internet Explorer -->
+    <script crossorigin src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"></script>
+    <!-- Fetch polyfill to support Internet Explorer -->
+    <script crossorigin src="https://unpkg.com/whatwg-fetch@3.0.0/dist/fetch.umd.js"></script>
+    <!-- URL polyfill to support Internet Explorer -->
+    <script crossorigin src="https://unpkg.com/@ungap/url-search-params@0.1.2/min.js"></script>
+
+    <style>
+        a,
+        a:visited {
+            color: #2485AE;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .template {
+            display: none;
+        }
+
+        ul.results {
+            list-style-type: none;
+            padding-left: 1em;
+            border: 1px solid lightgray;
+        }
+
+        ul.results li {
+            padding: 1em 0;
+            border-bottom: 1px solid lightgray;
+        }
+
+        #count {
+            font-size: smaller;
+            color: gray;
+            margin-left: 0.5em;
+        }
+
+        .person .photo,
+        .person .name {
+            vertical-align: middle;
+            display: inline;
+        }
+
+        img:not([src]) {
+            display: none !important;
+        }
+    </style>
+
+</head>
+
+<body class="listing">
+
+    <h1><a href="http://openvivo.org">OpenVIVO</a></h1>
+    <h2>People<span id="count"></span></h2>
+
+    <div id="listing">
+
+        <ul class="results">
+            <!-- Templates aren't visible, but their clones are filled out with real data. -->
+            <li class="person template">
+                <img class="photo" width=64></img>
+                <a href="#" class="name"></a>
+            </li>
+        </ul>
+    </div>
+
+    <script src="../../src/tpf.js"></script>
+
+    <script>
+        const endpoint = "http://openvivo.org/tpf/core"
+        const client = new tpf.Client(endpoint)
+
+        const root = document.getElementById("listing")
+        const list = document.querySelector(".results")
+        const template = root.querySelector("li.person.template")
+
+        client
+            .List("http://xmlns.com/foaf/0.1/Person")
+            .Results(function (people) {
+                const count = document.getElementById("count")
+                count.innerHTML = "(" + people.length + ")"
+                people.forEach(renderPerson)
+            })
+
+        // Aliases for ontology prefixes
+        const
+            bibo = "http://purl.org/ontology/bibo/",
+            foaf = "http://xmlns.com/foaf/0.1/",
+            obo = "http://purl.obolibrary.org/obo/",
+            rdfs = "http://www.w3.org/2000/01/rdf-schema#",
+            vcard = "http://www.w3.org/2006/vcard/ns#",
+            vitro = "http://vitro.mannlib.cornell.edu/ns/vitro/public#",
+            vivo = "http://vivoweb.org/ontology/core#"
+
+        function renderPerson(personIRI) {
+            // Remove the surrounding angle brackets from the IRI (< and >).
+            renderPersonCard(personIRI.slice(1, -1))
+        }
+
+        function renderPersonCard(iri) {
+            // Copy the HTML template and add the copy to the list.
+            const li = template.cloneNode(true)
+            li.className = li.className.replace("template", "")
+            list.append(li)
+
+            // Make the person's name link to their OpenVIVO profile.
+            const link = li.querySelector("a")
+            link.href = iri
+
+            // Get Label
+            client
+                .Entity(iri)
+                .Link(rdfs, "label")
+                .Single(renderName)
+
+            // Get Photo
+            client
+                .Entity(iri)
+                .Link(vitro, "mainImage")
+                .Link(vitro, "downloadLocation")
+                .Single(renderPhoto)
+
+            function renderName(name) {
+                // This handles unicode escape sequences.
+                name = name.trim()
+                if (name) {
+                    name = unescape(JSON.parse(name))
+                }
+
+                if (!name) {
+                    name = 'Unknown'
+                }
+
+                link.innerHTML = '<i class="fas fa-user"></i>' + name
+                li.querySelector(".photo").alt = name
+            }
+
+            function renderPhoto(url) {
+                if (!url) {
+                    return
+                }
+
+                if (url[0] == '<') {
+                    // Remove the surrounding angle brackets from the URL.
+                    url = url.slice(1, -1)
+                }
+
+                const img = li.querySelector(".photo")
+                img.src = url
+            }
+        }
+    </script>
+</body>
+
+</html>
