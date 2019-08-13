@@ -170,9 +170,11 @@ var tpf = (function module() {
             return str
         }
 
+        const suffix = "^^<http://www.w3.org/1999/02/22-rdf-syntax-ns#langString>"
+        str = str.replace(suffix, '')
+        // Chop of the language tag (example: "Hi"@en-US => Hi)
+        str = str.substring(0, str.lastIndexOf('"') + 1)
         return str
-            .replace('^^<http://www.w3.org/1999/02/22-rdf-syntax-ns#langString>', '')
-            .slice(1, -1)
     }
 
     /** Encodes the individual parts of a query string to make it URI safe. */
