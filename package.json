@@ -1,5 +1,12 @@
 {
     "private": true,
+    "name": "tpf",
+    "description": "JavaScript client for Triple Pattern Fragments servers",
+    "version": "0.1.0",
+    "homepage": "https://github.com/ctsit/tpf",
+    "main": "src/tpf.js",
+    "license": "Apache 2.0",
+    "author": "Taeber Rapczak <taeber@ufl.edu>",
     "scripts": {
         "test": "npx mocha --recursive ./tests/*_test.js"
     },
