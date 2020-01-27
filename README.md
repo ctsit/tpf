@@ -19,19 +19,20 @@ Quickstart
 
 Download `src/tpf.js` and include it in your HTML:
 
-    <script href="tpf.js"></script>
-    <script>
-        const rdfs = "http://www.w3.org/2000/01/rdf-schema#"
+```html
+<script href="tpf.js"></script>
+<script>
+    const rdfs = "http://www.w3.org/2000/01/rdf-schema#"
 
-        const endpoint = "http://openvivo.org/tpf/core"
-        const client = new tpf.Client(endpoint)
+    const endpoint = "http://openvivo.org/tpf/core"
+    const client = new tpf.Client(endpoint)
 
-        client
-            .Entity("http://openvivo.org/a/orcid0000-0002-1304-8447")
-            .Link(rdfs, "label")
-            .Single(function (label) { console.log(label) })
-    </script>
-
+    client
+        .Entity("http://openvivo.org/a/orcid0000-0002-1304-8447")
+        .Link(rdfs, "label")
+        .Single(function (label) { console.log(label) })
+</script>
+```
 
 
 Development
