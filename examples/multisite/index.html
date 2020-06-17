@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Linking Data across Multiple TPF Servers</title>
+
+    <script src="../../src/tpf.js"></script>
+
+    <style>
+        .m3c {
+            color: darkorange;
+            font-family: sans-serif;
+        }
+
+        #name { font-size: larger; }
+
+        .openvivo,
+        .openvivo a {
+            color: darkgreen;
+            font-family: serif;
+        }
+
+        #photo {
+            max-width: 200px;
+            height: auto;
+        }
+
+        /* .generated.m3c { border: 1px solid darkorange; } */
+        /* .generated.openvivo { border: 1px solid darkgreen; } */
+
+        .generated {
+            margin-left: 2em;
+            margin-bottom: 1em;
+        }
+
+        .generated > * {
+            margin-left: 1em;
+            margin-bottom: 1em;
+        }
+
+        ul {
+            padding-left: 0;
+            list-style-type: none;
+        }
+
+        .generated h2 {
+            /* text-align: center; */
+            margin-left: 0em;
+
+            color: black;
+        }
+
+    </style>
+</head>
+
+<body>
+    <h1>Linking Data across Multiple TPF Servers</h1>
+
+    <p>
+        First, the person&apos;s <strong>name</strong> and
+        <strong>photograph</strong> are populated from the
+        <a href="https://people.metabolomics.info">M3C People Portal</a>.
+    </p>
+    <p>
+        Then, their <strong>email address</strong> is used to find the
+        corresponding profile on <a href="http://openvivo.org">OpenVIVO</a> to
+        populate the <strong>ORCID ID</strong> and <strong>links</strong>.
+    </p>
+
+    <section class="generated m3c">
+        <h2>From the M3C People Portal</h2>
+        <img id=photo class=m3c />
+        <div id=name class=m3c></div>
+        <div id=email class=m3c></div>
+    </section>
+    <section class="generated openvivo">
+        <h2>From OpenVIVO</h2>
+        <div class=openvivo>
+            <a id=orcid></a>
+        </div>
+        <ul id=links class=openvivo>
+        </ul>
+    </section>
+
+    <p>
+        All <span class=m3c>sans-serif, orange</span> text is fetched from M3C.
+    </p>
+    <p>
+        All <span class=openvivo>serif, green</span> text is fetched from OpenVIVO.
+    </p>
+
+    <script>
+        const
+            obo = "http://purl.obolibrary.org/obo/",
+            rdfs = "http://www.w3.org/2000/01/rdf-schema#",
+            vcard = "http://www.w3.org/2006/vcard/ns#",
+            vitro = "http://vitro.mannlib.cornell.edu/ns/vitro/public#",
+            vivo = "http://vivoweb.org/ontology/core#"
+
+        const
+            openvivo = new tpf.Client("http://openvivo.org/tpf/core"),
+            m3c      = new tpf.Client("https://people.metabolomics.info/tpf/core")
+
+        const mconlon = "https://vivo.metabolomics.info/individual/p709"
+        // on OpenVIVO: "http://openvivo.org/a/orcid0000-0002-1304-8447"
+
+        fetchEmail()
+        fetchName()
+        fetchPhoto()
+
+        function fetchName() {
+            m3c
+                .Entity(mconlon)
+                .Link(rdfs, "label")
+                .Single(function (name) {
+                    name = removeQuotes(name)
+                    console.log("name", name)
+                    const node = document.getElementById("name")
+                    node.textContent = name
+                })
+        }
+
+        function fetchPhoto() {
+            m3c
+                .Entity(mconlon)
+                    .Link(vitro, "mainImage")
+                    .Link(vitro, "downloadLocation")
+                    .Link(vitro, "directDownloadUrl")
+                    .Single(function (url) {
+                        url = removeQuotes(url)
+                        console.log("url", url)
+                        const node = document.getElementById("photo")
+                        node.src = "https://people.metabolomics.info" + url
+                    })
+
+        }
+
+        function fetchEmail() {
+            m3c
+                .Entity(mconlon)
+                .Link(obo, "ARG_2000028")
+                .Link(vcard, "hasEmail")
+                .Link(vcard, "email")
+                .Single(function (email) {
+                    email = removeQuotes(email)
+                    console.log("email", email)
+                    const node = document.getElementById("email")
+                    node.textContent = email
+
+                    findPersonInOpenVIVO(email)
+               })
+        }
+
+        function findPersonInOpenVIVO(email) {
+            return openvivo
+                    .Query("", vcard + "email", xsdString(email))
+                    .then(function (results) {
+                        const emailCardIRI = results[0].Subject
+                        console.log(emailCardIRI)
+                        return openvivo.Query("", vcard + "hasEmail", emailCardIRI)
+                    })
+                    .then(function (results) {
+                        const vcardIRI = results[0].Subject
+                        console.log(vcardIRI)
+
+                        openvivo
+                            .Entity(vcardIRI)
+                            .Link(obo, "ARG_2000029")
+                            .Single(function (personIRI) {
+                                console.log(personIRI)
+                                fetchORCID(personIRI)
+                                fetchLinks(personIRI)
+                            })
+                    })
+        }
+
+        function fetchORCID(personIRI) {
+            openvivo
+                .Entity(personIRI)
+                .Link(vivo, "orcidId")
+                .Single(function (orcid) {
+                    orcid = removeQuotes(orcid)
+                    console.log("email", orcid)
+                    const a = document.getElementById("orcid")
+                    a.textContent = orcid
+                    a.href = orcid
+                })
+        }
+
+        function fetchLinks(personIRI) {
+            const ul = document.getElementById("links")
+
+            openvivo
+                .Entity(personIRI)
+                .Link(obo, "ARG_2000028")
+                .Link(vcard, "hasURL")
+                .Link(vcard, "url")
+                .Results(function (urls) {
+                    console.log("urls", urls.length)
+                    for (var i = 0; i < urls.length; i++) {
+                        url = removeQuotes(urls[i])
+                        console.log("link", url)
+                        const li = document.createElement("li")
+                        const a = document.createElement("a")
+                        a.textContent = url
+                        a.href = url
+                        li.append(a)
+                        ul.append(li)
+                    }
+                })
+        }
+
+        function removeQuotes(text) {
+            return text.slice(1, -1)
+        }
+
+        function xsdString(text) {
+            return '"' + text + '"' + "^^http://www.w3.org/2001/XMLSchema#string"
+        }
+    </script>
+
+</body>
+</html>
